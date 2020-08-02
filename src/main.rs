@@ -51,7 +51,9 @@ fn main() {
             }
             "IDAT" => {
                 println!("IDAT chunk (bytes omitted)");
-                decompress_png_to_raw(&chunk.data, 52); // FIXME actually use width from IHDR chunk
+                let rgba = decompress_png_to_raw(&chunk.data, 52); // FIXME actually use width from IHDR chunk
+                let mut out_file = File::create("./out.data").unwrap();
+                out_file.write(&rgba).unwrap();
             }
             "IEND" => {
                 println!("IEND chunk");
@@ -157,22 +159,34 @@ fn parse_srgb_chunk(bytes: &[u8]) -> SRGB {
     };
 }
 
-fn decompress_png_to_raw(compressed: &[u8], width: u32) {
+fn decompress_png_to_raw(compressed: &[u8], width: u32) -> Vec<u8> {
     let bytes = inflate::inflate_bytes_zlib(compressed).unwrap();
     println!("{} -> {}", compressed.len(), bytes.len());
+
+    let mut rgba = vec![];
 
     let mut idx = 0;
     loop {
         let line_filter = bytes[idx];
         idx += 1;
 
-        // skip pixels
-        idx += (4 * width) as usize; // skip pixels for now. TODO this is only gonna work for 32 bit images atm
+        for _i in 0..width {
+            let r = bytes[idx + 0];
+            let g = bytes[idx + 1];
+            let b = bytes[idx + 2];
+            let a = bytes[idx + 3];
+            idx += 4;
 
-        println!("{:x} ", line_filter);
+            rgba.push(r);
+            rgba.push(g);
+            rgba.push(b);
+            rgba.push(a);
+        }
 
         if idx >= bytes.len() {
             break;
         }
     }
+
+    return rgba;
 }
