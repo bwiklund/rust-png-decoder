@@ -23,13 +23,8 @@ fn main() {
 
     // CHUNKS
     // Chunk length
-    let mut chunk_len = vec![];
-    file.by_ref()
-        .take(4)
-        .read_to_end(&mut chunk_len)
-        .expect("EOF before chunk length");
-
     println!("Chunk:");
+    let chunk_len = read_bytes(&mut file, 4, String::from("Chunk length"));
     // is this the best way to convince rustc that this is 4 bytes???
     let mut len_bytes = [0u8; 4];
     len_bytes.copy_from_slice(&chunk_len[0..4]);
@@ -37,28 +32,27 @@ fn main() {
     println!("- len: {} bytes", len);
 
     // Chunk type
-    let mut chunk_type = vec![];
-    file.by_ref()
-        .take(4)
-        .read_to_end(&mut chunk_type)
-        .expect("EOF before chunk type");
+    let chunk_type = read_bytes(&mut file, 4, String::from("Chunk type"));
     println!("- type: {}", std::str::from_utf8(&chunk_type).unwrap());
 
     // Chunk data
-    let mut chunk_data = vec![];
-    file.by_ref()
-        .take(len as u64)
-        .read_to_end(&mut chunk_data)
-        .expect("EOF before chunk data length reached");
+    let chunk_data = read_bytes(&mut file, len as u64, String::from("Chunk data"));
+    println!("- data: <...> (read {} bytes successfully)", chunk_data.len());
 
-    let mut chunk_crc = vec![];
-    file.by_ref()
-        .take(4)
-        .read_to_end(&mut chunk_crc)
-        .expect("EOF before chunk CRC");
+    // Chunk CRC
+    let chunk_crc = read_bytes(&mut file, 4, String::from("Chunk CRC"));
     let mut crc_bytes = [0u8; 4];
     crc_bytes.copy_from_slice(&chunk_crc[0..4]);
     let crc = u32::from_be_bytes(crc_bytes);
-
     println!("- crc: {}", crc); // TODO actually check this
+}
+
+fn read_bytes(buf_reader: &mut BufReader<File>, len: u64, error_msg: String) -> Vec<u8> {
+    let mut bytes = vec![];
+    buf_reader
+        .by_ref()
+        .take(len)
+        .read_to_end(&mut bytes)
+        .expect(&format!("Error reading {}", error_msg));
+    bytes
 }
