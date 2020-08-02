@@ -3,6 +3,14 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 
+/*
+
+Questions:
+1. is `copy_from_slice` the best way to convince rust that i have an array of fixed size for `from_be_bytes`
+2. read_chunk should probably return a Result instead of panicking, yeah?
+3. is this `std::str::from_utf8(&chunk.ty).unwrap() == "IHDR"` too verbose? how can it be shorter
+*/
+
 // https://en.wikipedia.org/wiki/Portable_Network_Graphics
 fn main() {
     let file = File::open("selene.png").unwrap();
@@ -28,22 +36,37 @@ fn main() {
         println!("- len: {} bytes", chunk.len);
         println!("- type: {}", std::str::from_utf8(&chunk.ty).unwrap());
         println!("- crc: {}", chunk.crc);
+
+        if std::str::from_utf8(&chunk.ty).unwrap() == "IHDR" {
+            println!("- IHDR contents:");
+        }
+
         println!();
     }
 }
 
-struct Chunk {
+struct ChunkRaw {
     ty: [u8; 4],
     len: u32,
     crc: u32,
     data: Vec<u8>,
 }
 
-fn read_chunk(file: &mut BufReader<File>) -> Chunk {
+struct ChunkIHDR {
+    width: u32,
+    height: u32,
+    depth: u8,
+    color: u8,
+    compression: u8,
+    filter: u8,
+    interlace: u8,
+}
+
+fn read_chunk(file: &mut BufReader<File>) -> ChunkRaw {
     // CHUNKS
     // Chunk length
     let len_vec = read_bytes(file, 4, String::from("Chunk length"));
-    let mut len_bytes = [0u8; 4]; // is this the best way to convince rustc that this is 4 bytes???
+    let mut len_bytes = [0u8; 4];
     len_bytes.copy_from_slice(&len_vec[0..4]);
     let len = u32::from_be_bytes(len_bytes);
 
@@ -67,7 +90,7 @@ fn read_chunk(file: &mut BufReader<File>) -> Chunk {
         "Chunk checksum failed"
     );
 
-    return Chunk {
+    return ChunkRaw {
         ty: ty,
         len: len,
         crc: crc,
@@ -78,7 +101,6 @@ fn read_chunk(file: &mut BufReader<File>) -> Chunk {
 fn read_bytes(buf_reader: &mut BufReader<File>, len: u64, error_msg: String) -> Vec<u8> {
     let mut bytes = vec![];
     buf_reader
-        .by_ref()
         .take(len)
         .read_to_end(&mut bytes)
         .expect(&format!("Error reading {}", error_msg));
