@@ -1,3 +1,4 @@
+use crc::crc32;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -60,7 +61,11 @@ fn read_chunk(file: &mut BufReader<File>) -> Chunk {
     crc_bytes.copy_from_slice(&crc_vec[0..4]);
     let crc = u32::from_be_bytes(crc_bytes);
 
-    // TODO actually check CRC
+    assert_eq!(
+        crc32::checksum_ieee(&[&ty_vec[..], &data[..]].concat()),
+        crc,
+        "Chunk checksum failed"
+    );
 
     return Chunk {
         ty: ty,
