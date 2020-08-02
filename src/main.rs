@@ -32,14 +32,31 @@ fn main() {
 
     while !file.buffer().is_empty() {
         let chunk = read_chunk(&mut file);
-        println!("Chunk:");
-        println!("- len: {} bytes", chunk.len);
-        println!("- type: {}", std::str::from_utf8(&chunk.ty).unwrap());
-        println!("- crc: {}", chunk.crc);
+        println!(
+            "{}, {} bytes, crc {}",
+            std::str::from_utf8(&chunk.ty).unwrap(),
+            chunk.len,
+            chunk.crc
+        );
 
-        if std::str::from_utf8(&chunk.ty).unwrap() == "IHDR" {
-            let isdr = parse_ihdr_chunk(&chunk.data);
-            println!("{:#?}", isdr);
+        let ty_str = std::str::from_utf8(&chunk.ty).unwrap();
+
+        // TODO are these case sensitive in the spec?
+        match ty_str {
+            "IHDR" => {
+                println!("{:#?}", parse_ihdr_chunk(&chunk.data));
+            }
+            "sRGB" => {
+                println!("{:#?}", parse_srgb_chunk(&chunk.data));
+            }
+            "IDAT" => {
+                println!("IDAT chunk (bytes omitted)");
+                decompress_png_to_raw(&chunk.data, 52); // FIXME actually use width from IHDR chunk
+            }
+            "IEND" => {
+                println!("IEND chunk");
+            }
+            _ => println!("unknown chunk type: {}", ty_str),
         }
 
         println!();
@@ -94,6 +111,12 @@ fn read_bytes(buf_reader: &mut BufReader<File>, len: u64, error_msg: String) -> 
     bytes
 }
 
+fn bytes_to_u32(v: &[u8]) -> u32 {
+    let mut bytes = [0u8; 4];
+    bytes.copy_from_slice(v);
+    return u32::from_be_bytes(bytes);
+}
+
 #[derive(Debug)]
 struct ChunkIHDR {
     width: u32,
@@ -120,8 +143,36 @@ fn parse_ihdr_chunk(bytes: &[u8]) -> ChunkIHDR {
     };
 }
 
-fn bytes_to_u32(v: &[u8]) -> u32 {
-    let mut bytes = [0u8; 4];
-    bytes.copy_from_slice(v);
-    return u32::from_be_bytes(bytes);
+#[derive(Debug)]
+struct SRGB {
+    rendering_intent: u8,
+}
+
+fn parse_srgb_chunk(bytes: &[u8]) -> SRGB {
+    if bytes.len() != 1 {
+        panic!("sRGB header expects 1 bytes, found {}", bytes.len());
+    }
+    return SRGB {
+        rendering_intent: bytes[0],
+    };
+}
+
+fn decompress_png_to_raw(compressed: &[u8], width: u32) {
+    let bytes = inflate::inflate_bytes_zlib(compressed).unwrap();
+    println!("{} -> {}", compressed.len(), bytes.len());
+
+    let mut idx = 0;
+    loop {
+        let line_filter = bytes[idx];
+        idx += 1;
+
+        // skip pixels
+        idx += (4 * width) as usize; // skip pixels for now. TODO this is only gonna work for 32 bit images atm
+
+        println!("{:x} ", line_filter);
+
+        if idx >= bytes.len() {
+            break;
+        }
+    }
 }
