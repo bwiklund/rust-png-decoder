@@ -167,7 +167,7 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32) -> Vec<u8> {
 
     let mut idx = 0;
     loop {
-        let line_filter = bytes[idx];
+        let _line_filter = bytes[idx];
         idx += 1;
 
         for _i in 0..width {
@@ -177,10 +177,17 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32) -> Vec<u8> {
             let a = bytes[idx + 3];
             idx += 4;
 
-            rgba.push(r);
-            rgba.push(g);
-            rgba.push(b);
-            rgba.push(a);
+            if idx - 4 <= 1 {
+                rgba.push(r);
+                rgba.push(g);
+                rgba.push(b);
+                rgba.push(a);
+            } else {
+                rgba.push(((r as i32 + rgba[(rgba.len() as i32 - 4) as usize] as i32) % 256) as u8);
+                rgba.push(((g as i32 + rgba[(rgba.len() as i32 - 4) as usize] as i32) % 256) as u8);
+                rgba.push(((b as i32 + rgba[(rgba.len() as i32 - 4) as usize] as i32) % 256) as u8);
+                rgba.push(((a as i32 + rgba[(rgba.len() as i32 - 4) as usize] as i32) % 256) as u8);
+            }
         }
 
         if idx >= bytes.len() {
