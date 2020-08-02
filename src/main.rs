@@ -17,13 +17,13 @@ fn main() {
     let mut file = BufReader::new(file);
 
     // HEADER
-    let mut header = vec![];
-    file.by_ref()
-        .take(8)
-        .read_to_end(&mut header)
-        .expect("PNG header too short");
-
     let expect_header: Vec<u8> = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    let header = read_bytes(
+        &mut file,
+        expect_header.len() as u64,
+        String::from("PNG header"),
+    );
+
     for b in 0..header.len() {
         if header[b] != expect_header[b] {
             panic!("Invalid PNG header");
