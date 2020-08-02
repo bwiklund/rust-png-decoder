@@ -38,7 +38,8 @@ fn main() {
         println!("- crc: {}", chunk.crc);
 
         if std::str::from_utf8(&chunk.ty).unwrap() == "IHDR" {
-            println!("- IHDR contents:");
+            let isdr = parse_ihdr_chunk(&chunk.data);
+            println!("{:#?}", isdr);
         }
 
         println!();
@@ -52,23 +53,11 @@ struct ChunkRaw {
     data: Vec<u8>,
 }
 
-struct ChunkIHDR {
-    width: u32,
-    height: u32,
-    depth: u8,
-    color: u8,
-    compression: u8,
-    filter: u8,
-    interlace: u8,
-}
-
 fn read_chunk(file: &mut BufReader<File>) -> ChunkRaw {
     // CHUNKS
     // Chunk length
     let len_vec = read_bytes(file, 4, String::from("Chunk length"));
-    let mut len_bytes = [0u8; 4];
-    len_bytes.copy_from_slice(&len_vec[0..4]);
-    let len = u32::from_be_bytes(len_bytes);
+    let len = bytes_to_u32(&len_vec[0..4]);
 
     // Chunk type
     let ty_vec = read_bytes(file, 4, String::from("Chunk type"));
@@ -80,9 +69,7 @@ fn read_chunk(file: &mut BufReader<File>) -> ChunkRaw {
 
     // Chunk CRC
     let crc_vec = read_bytes(file, 4, String::from("Chunk CRC"));
-    let mut crc_bytes = [0u8; 4];
-    crc_bytes.copy_from_slice(&crc_vec[0..4]);
-    let crc = u32::from_be_bytes(crc_bytes);
+    let crc = bytes_to_u32(&crc_vec[0..4]);
 
     assert_eq!(
         crc32::checksum_ieee(&[&ty_vec[..], &data[..]].concat()),
@@ -105,4 +92,36 @@ fn read_bytes(buf_reader: &mut BufReader<File>, len: u64, error_msg: String) -> 
         .read_to_end(&mut bytes)
         .expect(&format!("Error reading {}", error_msg));
     bytes
+}
+
+#[derive(Debug)]
+struct ChunkIHDR {
+    width: u32,
+    height: u32,
+    depth: u8,
+    color: u8,
+    compression: u8,
+    filter: u8,
+    interlace: u8,
+}
+
+fn parse_ihdr_chunk(bytes: &[u8]) -> ChunkIHDR {
+    if bytes.len() != 13 {
+        panic!("IHDR header expects 13 bytes, found {}", bytes.len());
+    }
+    return ChunkIHDR {
+        width: bytes_to_u32(&bytes[0..4]),
+        height: bytes_to_u32(&bytes[4..8]),
+        depth: bytes[8],
+        color: bytes[9],
+        compression: bytes[10],
+        filter: bytes[11],
+        interlace: bytes[12],
+    };
+}
+
+fn bytes_to_u32(v: &[u8]) -> u32 {
+    let mut bytes = [0u8; 4];
+    bytes.copy_from_slice(v);
+    return u32::from_be_bytes(bytes);
 }
