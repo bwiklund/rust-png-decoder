@@ -51,7 +51,7 @@ fn main() {
             }
             "IDAT" => {
                 println!("IDAT chunk (bytes omitted)");
-                let rgba = decompress_png_to_raw(&chunk.data, 52); // FIXME actually use width from IHDR chunk
+                let rgba = decompress_png_to_raw(&chunk.data, 52, 52); // FIXME actually use width from IHDR chunk
                 let mut out_file = File::create("./out.data").unwrap();
                 out_file.write(&rgba).unwrap();
             }
@@ -168,21 +168,18 @@ fn lookup(v: &[u8], bpp: i32, width: u32, x: i32, y: i32, component: i32) -> u8 
     }
 }
 
-fn decompress_png_to_raw(compressed: &[u8], width: u32) -> Vec<u8> {
+// TODO only store the last line in ram, stream the rest of the image out immediately
+fn decompress_png_to_raw(compressed: &[u8], width: u32, height: u32) -> Vec<u8> {
     let bytes = inflate::inflate_bytes_zlib(compressed).unwrap();
     println!("{} -> {}", compressed.len(), bytes.len());
 
     let mut rgba: Vec<u8> = vec![];
 
-    let mut idx = 0;
-    let mut y = 0;
-    loop {
+    let bpp = 4;
+    let mut idx = 0; // TODO calculate this from x and y so its not dependent on idx+=1 occuring at the right time
+    for y in 0..height as i32 {
         let filter = bytes[idx];
         idx += 1;
-
-        println!("{}", filter);
-
-        let bpp = 4;
 
         match filter {
             0 => {
@@ -247,12 +244,6 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32) -> Vec<u8> {
                 panic!(format!("Invalid line filter type: {:x}", filter));
             }
         }
-
-        if idx >= bytes.len() {
-            break;
-        }
-
-        y += 1;
     }
 
     return rgba;
