@@ -13,7 +13,7 @@ Questions:
 
 // https://en.wikipedia.org/wiki/Portable_Network_Graphics
 fn main() {
-    let file = File::open("selene.png").unwrap();
+    let file = File::open("selene_truecolor_alpha.png").unwrap();
     let mut file = BufReader::new(file);
 
     // HEADER
@@ -51,7 +51,7 @@ fn main() {
             }
             "IDAT" => {
                 println!("IDAT chunk (bytes omitted)");
-                let rgba = decompress_png_to_raw(&chunk.data, 52, 52); // FIXME actually use width from IHDR chunk
+                let rgba = decompress_png_to_raw(&chunk.data, 4, 52, 52); // FIXME actually use width from IHDR chunk
                 let mut out_file = File::create("./out.data").unwrap();
                 out_file.write(&rgba).unwrap();
             }
@@ -169,13 +169,12 @@ fn lookup(v: &[u8], bpp: i32, width: u32, x: i32, y: i32, component: i32) -> u8 
 }
 
 // TODO only store the last line in ram, stream the rest of the image out immediately
-fn decompress_png_to_raw(compressed: &[u8], width: u32, height: u32) -> Vec<u8> {
+fn decompress_png_to_raw(compressed: &[u8], bpp: i32, width: u32, height: u32) -> Vec<u8> {
     let bytes = inflate::inflate_bytes_zlib(compressed).unwrap();
     println!("{} -> {}", compressed.len(), bytes.len());
 
-    let mut rgba: Vec<u8> = vec![];
+    let mut out: Vec<u8> = vec![];
 
-    let bpp = 4;
     let mut idx = 0; // TODO calculate this from x and y so its not dependent on idx+=1 occuring at the right time
     for y in 0..height as i32 {
         let filter = bytes[idx];
@@ -186,7 +185,7 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32, height: u32) -> Vec<u8> 
                 // None
                 for _x in 0..width {
                     for _i in 0..bpp {
-                        rgba.push(bytes[idx]);
+                        out.push(bytes[idx]);
                         idx += 1;
                     }
                 }
@@ -195,9 +194,9 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32, height: u32) -> Vec<u8> 
                 // Sub (left)
                 for x in 0..width as i32 {
                     for i in 0..bpp {
-                        let pred = lookup(&rgba, bpp, width, x - 1, y, i);
+                        let pred = lookup(&out, bpp, width, x - 1, y, i);
                         let val = (pred as i32 + bytes[idx] as i32) % 256;
-                        rgba.push(val as u8);
+                        out.push(val as u8);
                         idx += 1;
                     }
                 }
@@ -206,9 +205,9 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32, height: u32) -> Vec<u8> 
                 // Up
                 for x in 0..width as i32 {
                     for i in 0..bpp {
-                        let pred = lookup(&rgba, bpp, width, x, y - 1, i);
+                        let pred = lookup(&out, bpp, width, x, y - 1, i);
                         let val = (pred as i32 + bytes[idx] as i32) % 256;
-                        rgba.push(val as u8);
+                        out.push(val as u8);
                         idx += 1;
                     }
                 }
@@ -217,11 +216,11 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32, height: u32) -> Vec<u8> 
                 // Average (of left and top)
                 for x in 0..width as i32 {
                     for i in 0..bpp {
-                        let pred = (lookup(&rgba, bpp, width, x - 1, y, i) as i32
-                            + lookup(&rgba, bpp, width, x, y - 1, i) as i32)
+                        let pred = (lookup(&out, bpp, width, x - 1, y, i) as i32
+                            + lookup(&out, bpp, width, x, y - 1, i) as i32)
                             / 2;
                         let val = (pred + bytes[idx] as i32) % 256;
-                        rgba.push(val as u8);
+                        out.push(val as u8);
                         idx += 1;
                     }
                 }
@@ -230,12 +229,12 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32, height: u32) -> Vec<u8> 
                 for x in 0..width as i32 {
                     for i in 0..bpp {
                         let pred = paeth_predictor(
-                            lookup(&rgba, bpp, width, x - 1, y, i) as i32,
-                            lookup(&rgba, bpp, width, x, y - 1, i) as i32,
-                            lookup(&rgba, bpp, width, x - 1, y - 1, i) as i32,
+                            lookup(&out, bpp, width, x - 1, y, i) as i32,
+                            lookup(&out, bpp, width, x, y - 1, i) as i32,
+                            lookup(&out, bpp, width, x - 1, y - 1, i) as i32,
                         );
                         let val = (pred + bytes[idx] as i32) % 256;
-                        rgba.push(val as u8);
+                        out.push(val as u8);
                         idx += 1;
                     }
                 }
@@ -246,7 +245,7 @@ fn decompress_png_to_raw(compressed: &[u8], width: u32, height: u32) -> Vec<u8> 
         }
     }
 
-    return rgba;
+    return out;
 }
 
 // Paeth, A, B, or C, whichever is closest to p = A + B − C
