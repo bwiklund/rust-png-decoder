@@ -11,9 +11,9 @@ use crate::image::decompress_png_to_raw;
 /*
 
 Questions:
-1. is `copy_from_slice` the best way to convince rust that i have an array of fixed size for `from_be_bytes`
-2. read_chunk should probably return a Result instead of panicking, yeah?
-3. is this `std::str::from_utf8(&chunk.ty).unwrap() == "IHDR"` too verbose? how can it be shorter
+- is `copy_from_slice` the best way to convince rust that i have an array of fixed size for `from_be_bytes`
+- read_chunk should probably return a Result instead of panicking, yeah?
+- is it idiomatic to end with a return or an implicit return expression
 */
 
 // https://en.wikipedia.org/wiki/Portable_Network_Graphics
@@ -53,7 +53,7 @@ fn main() -> std::io::Result<()> {
             }
             "IDAT" => {
                 println!("IDAT chunk (bytes omitted)");
-                let rgba = decompress_png_to_raw(&chunk.data, 4, 52, 52); // FIXME actually use width from IHDR chunk
+                let rgba = decompress_png_to_raw(&chunk.data, 4, 52, 52).unwrap(); // FIXME actually use width from IHDR chunk
                 let mut out_file = File::create("./out.data").unwrap();
                 out_file.write(&rgba).unwrap();
             }

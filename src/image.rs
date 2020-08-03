@@ -1,6 +1,11 @@
 // TODO only store the last line in ram, stream the rest of the image out immediately
-pub fn decompress_png_to_raw(compressed: &[u8], bpp: i32, width: u32, height: u32) -> Vec<u8> {
-  let bytes = inflate::inflate_bytes_zlib(compressed).unwrap();
+pub fn decompress_png_to_raw(
+  compressed: &[u8],
+  bpp: i32,
+  width: u32,
+  height: u32,
+) -> Result<Vec<u8>, String> {
+  let bytes = inflate::inflate_bytes_zlib(compressed)?;
   println!("{} -> {}", compressed.len(), bytes.len());
 
   let mut out: Vec<u8> = vec![];
@@ -75,7 +80,7 @@ pub fn decompress_png_to_raw(compressed: &[u8], bpp: i32, width: u32, height: u3
     }
   }
 
-  return out;
+  return Ok(out);
 }
 
 // pixels that would be offscreen up or left are all treated as zeros, this helps with that
