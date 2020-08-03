@@ -68,11 +68,14 @@ pub struct ChunkIHDR {
   pub interlace: u8,
 }
 
-pub fn parse_ihdr_chunk(bytes: &[u8]) -> ChunkIHDR {
+pub fn parse_ihdr_chunk(bytes: &[u8]) -> Result<ChunkIHDR, String> {
   if bytes.len() != 13 {
-    panic!("IHDR header expects 13 bytes, found {}", bytes.len());
+    return Err(format!(
+      "IHDR header expects 13 bytes, found {}",
+      bytes.len()
+    ));
   }
-  return ChunkIHDR {
+  return Ok(ChunkIHDR {
     width: bytes_to_u32(&bytes[0..4]),
     height: bytes_to_u32(&bytes[4..8]),
     depth: bytes[8],
@@ -80,7 +83,7 @@ pub fn parse_ihdr_chunk(bytes: &[u8]) -> ChunkIHDR {
     compression: bytes[10],
     filter: bytes[11],
     interlace: bytes[12],
-  };
+  });
 }
 
 #[derive(Debug)]
@@ -88,11 +91,14 @@ pub struct SRGB {
   pub rendering_intent: u8,
 }
 
-pub fn parse_srgb_chunk(bytes: &[u8]) -> SRGB {
+pub fn parse_srgb_chunk(bytes: &[u8]) -> Result<SRGB, String> {
   if bytes.len() != 1 {
-    panic!("sRGB header expects 1 bytes, found {}", bytes.len());
+    return Err(format!(
+      "sRGB header expects 1 bytes, found {}",
+      bytes.len()
+    ));
   }
-  return SRGB {
+  return Ok(SRGB {
     rendering_intent: bytes[0],
-  };
+  });
 }

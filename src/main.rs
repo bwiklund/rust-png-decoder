@@ -17,7 +17,7 @@ Questions:
 */
 
 // https://en.wikipedia.org/wiki/Portable_Network_Graphics
-fn main() {
+fn main() -> std::io::Result<()> {
     let file = File::open("selene_truecolor_alpha.png").unwrap();
     let mut file = BufReader::new(file);
 
@@ -68,4 +68,6 @@ fn main() {
 
         println!();
     }
+
+    return Ok(());
 }
