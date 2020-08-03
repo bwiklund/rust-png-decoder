@@ -1,1 +1,3 @@
-convert -size 52x52 -depth 8 RGBA:out.data -channel RGBA -separate -delete 0 -combine out.bmp
+#!/bin/bash
+
+convert -size 52x52 -depth 8 RGBA:out.data out.bmp

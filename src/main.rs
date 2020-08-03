@@ -159,41 +159,117 @@ fn parse_srgb_chunk(bytes: &[u8]) -> SRGB {
     };
 }
 
+// pixels that would be offscreen up or left are all treated as zeros, this helps with that
+fn lookup(v: &[u8], bpp: i32, width: u32, x: i32, y: i32, component: i32) -> u8 {
+    if x < 0 || y < 0 {
+        return 0;
+    } else {
+        return v[((x + y * width as i32) * bpp + component) as usize];
+    }
+}
+
 fn decompress_png_to_raw(compressed: &[u8], width: u32) -> Vec<u8> {
     let bytes = inflate::inflate_bytes_zlib(compressed).unwrap();
     println!("{} -> {}", compressed.len(), bytes.len());
 
-    let mut rgba = vec![];
+    let mut rgba: Vec<u8> = vec![];
 
     let mut idx = 0;
+    let mut y = 0;
     loop {
-        let _line_filter = bytes[idx];
+        let filter = bytes[idx];
         idx += 1;
 
-        for _i in 0..width {
-            let r = bytes[idx + 0];
-            let g = bytes[idx + 1];
-            let b = bytes[idx + 2];
-            let a = bytes[idx + 3];
-            idx += 4;
+        println!("{}", filter);
 
-            if idx - 4 <= 1 {
-                rgba.push(r);
-                rgba.push(g);
-                rgba.push(b);
-                rgba.push(a);
-            } else {
-                rgba.push(((r as i32 + rgba[(rgba.len() as i32 - 4) as usize] as i32) % 256) as u8);
-                rgba.push(((g as i32 + rgba[(rgba.len() as i32 - 4) as usize] as i32) % 256) as u8);
-                rgba.push(((b as i32 + rgba[(rgba.len() as i32 - 4) as usize] as i32) % 256) as u8);
-                rgba.push(((a as i32 + rgba[(rgba.len() as i32 - 4) as usize] as i32) % 256) as u8);
+        let bpp = 4;
+
+        match filter {
+            0 => {
+                // None
+                for _x in 0..width {
+                    for _i in 0..bpp {
+                        rgba.push(bytes[idx]);
+                        idx += 1;
+                    }
+                }
+            }
+            1 => {
+                // Sub (left)
+                for x in 0..width as i32 {
+                    for i in 0..bpp {
+                        let pred = lookup(&rgba, bpp, width, x - 1, y, i);
+                        let val = (pred as i32 + bytes[idx] as i32) % 256;
+                        rgba.push(val as u8);
+                        idx += 1;
+                    }
+                }
+            }
+            2 => {
+                // Up
+                for x in 0..width as i32 {
+                    for i in 0..bpp {
+                        let pred = lookup(&rgba, bpp, width, x, y - 1, i);
+                        let val = (pred as i32 + bytes[idx] as i32) % 256;
+                        rgba.push(val as u8);
+                        idx += 1;
+                    }
+                }
+            }
+            3 => {
+                // Average (of left and top)
+                for x in 0..width as i32 {
+                    for i in 0..bpp {
+                        let pred = (lookup(&rgba, bpp, width, x - 1, y, i) as i32
+                            + lookup(&rgba, bpp, width, x, y - 1, i) as i32)
+                            / 2;
+                        let val = (pred + bytes[idx] as i32) % 256;
+                        rgba.push(val as u8);
+                        idx += 1;
+                    }
+                }
+            }
+            4 => {
+                for x in 0..width as i32 {
+                    for i in 0..bpp {
+                        let pred = paeth_predictor(
+                            lookup(&rgba, bpp, width, x - 1, y, i) as i32,
+                            lookup(&rgba, bpp, width, x, y - 1, i) as i32,
+                            lookup(&rgba, bpp, width, x - 1, y - 1, i) as i32,
+                        );
+                        let val = (pred + bytes[idx] as i32) % 256;
+                        rgba.push(val as u8);
+                        idx += 1;
+                    }
+                }
+            }
+            _ => {
+                panic!(format!("Invalid line filter type: {:x}", filter));
             }
         }
 
         if idx >= bytes.len() {
             break;
         }
+
+        y += 1;
     }
 
     return rgba;
+}
+
+// Paeth, A, B, or C, whichever is closest to p = A + B − C
+fn paeth_predictor(a: i32, b: i32, c: i32) -> i32 {
+    let p = a + b - c;
+    let pa = i32::abs(p - a);
+    let pb = i32::abs(p - b);
+    let pc = i32::abs(p - c);
+
+    if pa <= pb && pa <= pc {
+        return a;
+    } else if pb <= pc {
+        return b;
+    } else {
+        return c;
+    }
 }
