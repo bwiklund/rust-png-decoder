@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 
-use crate::chunks::{parse_ihdr_chunk, parse_srgb_chunk, read_bytes, read_chunk};
+use crate::chunks::{parse_ihdr_chunk, parse_srgb_chunk, read_chunk};
 use crate::image::decompress_png_to_raw;
 
 /*
@@ -18,16 +18,13 @@ Questions:
 
 // https://en.wikipedia.org/wiki/Portable_Network_Graphics
 fn main() -> std::io::Result<()> {
-    let file = File::open("selene_truecolor_alpha.png").unwrap();
+    let file = File::open("selene_truecolor_alpha.png")?;
     let mut file = BufReader::new(file);
 
     // HEADER
     let expect_header: Vec<u8> = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-    let header = read_bytes(
-        &mut file,
-        expect_header.len() as u64,
-        String::from("PNG header"),
-    );
+    let mut header = vec![0; expect_header.len()];
+    file.read_exact(&mut header)?;
 
     for b in 0..header.len() {
         if header[b] != expect_header[b] {
@@ -36,7 +33,7 @@ fn main() -> std::io::Result<()> {
     }
 
     while !file.buffer().is_empty() {
-        let chunk = read_chunk(&mut file);
+        let chunk = read_chunk(&mut file)?;
         println!(
             "{}, {} bytes, crc {}",
             std::str::from_utf8(&chunk.ty).unwrap(),

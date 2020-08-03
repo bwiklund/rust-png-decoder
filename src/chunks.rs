@@ -2,6 +2,7 @@ use crc::crc32;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::io::{Error, ErrorKind};
 
 pub struct ChunkRaw {
   pub ty: [u8; 4],
@@ -10,45 +11,34 @@ pub struct ChunkRaw {
   pub data: Vec<u8>,
 }
 
-pub fn read_chunk(file: &mut BufReader<File>) -> ChunkRaw {
+pub fn read_chunk(file: &mut BufReader<File>) -> std::io::Result<ChunkRaw> {
   // CHUNKS
   // Chunk length
-  let len_vec = read_bytes(file, 4, String::from("Chunk length"));
-  let len = bytes_to_u32(&len_vec[0..4]);
+  let mut len = [0; 4];
+  file.read_exact(&mut len)?;
+  let len = bytes_to_u32(&len);
 
   // Chunk type
-  let ty_vec = read_bytes(file, 4, String::from("Chunk type"));
-  let mut ty = [0u8; 4];
-  ty.copy_from_slice(&ty_vec[0..4]);
+  let mut ty = [0; 4];
+  file.read_exact(&mut ty)?;
 
   // Chunk data
-  let data = read_bytes(file, len as u64, String::from("Chunk data"));
+  let mut data = vec![];
+  file.take(len as u64).read_to_end(&mut data)?;
 
   // Chunk CRC
-  let crc_vec = read_bytes(file, 4, String::from("Chunk CRC"));
-  let crc = bytes_to_u32(&crc_vec[0..4]);
+  let mut crc = [0; 4];
+  file.read_exact(&mut crc)?;
+  let crc = bytes_to_u32(&crc);
 
-  assert_eq!(
-    crc32::checksum_ieee(&[&ty_vec[..], &data[..]].concat()),
-    crc,
-    "Chunk checksum failed"
-  );
+  let is_crc_valid = crc32::checksum_ieee(&[&ty[..], &data[..]].concat()) == crc;
 
-  return ChunkRaw {
-    ty: ty,
-    len: len,
-    crc: crc,
-    data: data,
-  };
-}
+  if !is_crc_valid {
+    // TODO is this idiomatic?
+    return Err(Error::new(ErrorKind::Other, "Chunk CRC validation failed"));
+  }
 
-pub fn read_bytes(buf_reader: &mut BufReader<File>, len: u64, error_msg: String) -> Vec<u8> {
-  let mut bytes = vec![];
-  buf_reader
-    .take(len)
-    .read_to_end(&mut bytes)
-    .expect(&format!("Error reading {}", error_msg));
-  bytes
+  return Ok(ChunkRaw { ty, len, crc, data });
 }
 
 pub fn bytes_to_u32(v: &[u8]) -> u32 {
