@@ -17,7 +17,7 @@ Questions:
 
 // https://en.wikipedia.org/wiki/Portable_Network_Graphics
 fn main() -> std::io::Result<()> {
-    let file = File::open("tests/truecolor_rgba.png")?;
+    let file = File::open("tests/indexed_opaque.png")?;
     let mut file = BufReader::new(file);
     let png = read_png(&mut file)?;
     let mut out_file = File::create("./out.data").unwrap();

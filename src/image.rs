@@ -1,17 +1,55 @@
 // TODO only store the last line in ram, stream the rest of the image out immediately
 
+use crate::chunks::parse_ihdr_chunk;
 use crate::chunks::Png;
 use std::fs::File;
 use std::io::prelude::*;
 
 // TODO take a buffer writer instead, or something
 pub fn png_to_raw(png: &Png, out_file: &mut File) {
+  let ihdr = png.chunks.get(&String::from("IHDR")).unwrap();
+  let ihdr = parse_ihdr_chunk(&ihdr.data).unwrap();
+
+  let has_alpha = 0b0100 & ihdr.color > 0;
+  let has_color = 0b0010 & ihdr.color > 0;
+  let has_palette = 0b0001 & ihdr.color > 0;
+
+  if has_palette && !has_color {}
+
+  let mut raw_channels = 0;
+  if has_palette {
+    if has_color {
+      raw_channels += 1;
+    } else {
+      panic!(); // png spec says palette flag can only exist with color
+    }
+  } else {
+    if has_color {
+      raw_channels += 3;
+    }
+    if has_alpha {
+      raw_channels += 1;
+    }
+  }
+
+  println!("{}", raw_channels);
+
   let idata = png.chunks.get(&String::from("IDAT")).unwrap();
-  let rgba = decompress_png_to_raw(&idata.data, 4, 52, 52).unwrap(); // FIXME actually use width from IHDR chunk
+
+  let channels = idat_to_image(&idata.data, raw_channels, ihdr.width, ihdr.height).unwrap(); // FIXME actually use width from IHDR chunk
+
+  let rgba;
+  if has_palette {
+    let plte = png.chunks.get(&String::from("PLTE")).unwrap();
+    rgba = apply_palette(&channels, &plte.data);
+  } else {
+    rgba = channels;
+  }
+
   out_file.write(&rgba).unwrap();
 }
 
-pub fn decompress_png_to_raw(
+pub fn idat_to_image(
   compressed: &[u8],
   bpp: i32,
   width: u32,
@@ -118,4 +156,25 @@ fn paeth_predictor(a: i32, b: i32, c: i32) -> i32 {
   } else {
     return c;
   }
+}
+
+pub fn apply_palette(indexes: &[u8], palette_bytes: &[u8]) -> Vec<u8> {
+  if palette_bytes.len() % 3 != 0 {
+    panic!();
+  }
+
+  let mut out = vec![];
+
+  for i in 0..indexes.len() {
+    let b = indexes[i];
+    let palette_index = (b * 3) as usize;
+    // TODO bounds check indices
+    // palettes are ALWAYS rgb, 1 byte each
+    out.push(palette_bytes[palette_index + 0]);
+    out.push(palette_bytes[palette_index + 1]);
+    out.push(palette_bytes[palette_index + 2]);
+    out.push(255); // hang on... these can have alpha, no?
+  }
+
+  return out;
 }
