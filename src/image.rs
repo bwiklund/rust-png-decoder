@@ -32,12 +32,12 @@ pub fn png_to_raw(png: &Png, out_file: &mut File) {
     }
   }
 
-  println!("{}", raw_channels);
+  let idat = png.chunks.get(&String::from("IDAT")).unwrap();
 
-  let idata = png.chunks.get(&String::from("IDAT")).unwrap();
+  // regardless of grayscale / truecolor / indexed, the channels are all encoded the same way
+  let channels = idat_to_image(&idat.data, raw_channels, ihdr.width, ihdr.height).unwrap();
 
-  let channels = idat_to_image(&idata.data, raw_channels, ihdr.width, ihdr.height).unwrap(); // FIXME actually use width from IHDR chunk
-
+  // now apply the palette if we're in indexed mode
   let rgba;
   if has_palette {
     let plte = png.chunks.get(&String::from("PLTE")).unwrap();
@@ -56,11 +56,10 @@ pub fn idat_to_image(
   height: u32,
 ) -> Result<Vec<u8>, String> {
   let bytes = inflate::inflate_bytes_zlib(compressed)?;
-  println!("{} -> {}", compressed.len(), bytes.len());
 
   let mut out: Vec<u8> = vec![];
 
-  let mut idx = 0; // TODO calculate this from x and y so its not dependent on idx+=1 occuring at the right time
+  let mut idx = 0;
   for y in 0..height as i32 {
     let filter = bytes[idx];
     idx += 1;

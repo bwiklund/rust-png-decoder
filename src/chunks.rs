@@ -122,6 +122,7 @@ pub struct SRGB {
   pub rendering_intent: u8,
 }
 
+#[allow(dead_code)]
 pub fn parse_srgb_chunk(bytes: &[u8]) -> Result<SRGB, String> {
   if bytes.len() != 1 {
     return Err(format!(
