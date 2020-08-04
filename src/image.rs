@@ -3,13 +3,13 @@ use crate::chunks::Png;
 
 // TODO only store the last line for filters
 // TODO take a buffer writer instead, or something
-pub fn png_to_raw(png: &Png) -> Vec<u8> {
+pub fn png_to_rgba(png: &Png) -> Vec<u8> {
   let ihdr = png.chunks.get(&String::from("IHDR")).unwrap();
   let ihdr = parse_ihdr_chunk(&ihdr.data).unwrap();
 
-  let has_alpha = 0b0100 & ihdr.color > 0;
-  let has_color = 0b0010 & ihdr.color > 0;
-  let has_palette = 0b0001 & ihdr.color > 0;
+  let has_alpha = (1 << 2) & ihdr.color > 0;
+  let has_color = (1 << 1) & ihdr.color > 0;
+  let has_palette = (1 << 0) & ihdr.color > 0;
 
   if has_palette && !has_color {}
 
@@ -32,7 +32,7 @@ pub fn png_to_raw(png: &Png) -> Vec<u8> {
   let idat = png.chunks.get(&String::from("IDAT")).unwrap();
 
   // regardless of grayscale / truecolor / indexed, the channels are all encoded the same way
-  let channels = idat_to_image(&idat.data, raw_channels, ihdr.width, ihdr.height).unwrap();
+  let channels = idat_to_channels(&idat.data, raw_channels, ihdr.width, ihdr.height).unwrap();
 
   // now apply the palette if we're in indexed mode
   let rgba;
@@ -46,7 +46,7 @@ pub fn png_to_raw(png: &Png) -> Vec<u8> {
   rgba
 }
 
-pub fn idat_to_image(
+fn idat_to_channels(
   compressed: &[u8],
   bpp: i32,
   width: u32,

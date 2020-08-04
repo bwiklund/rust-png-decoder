@@ -1,2 +1,4 @@
 /target
 /tests/*.bmp
+/*.bmp
+/*.data
