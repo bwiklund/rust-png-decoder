@@ -5,8 +5,10 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::{Error, ErrorKind};
 
+pub type ChunkHashMap = HashMap<[u8; 4], ChunkRaw>;
+
 pub struct Png {
-  pub chunks: HashMap<[u8; 4], ChunkRaw>,
+  pub chunks: ChunkHashMap,
 }
 
 pub struct ChunkRaw {
