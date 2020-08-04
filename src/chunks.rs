@@ -36,7 +36,7 @@ pub fn read_png(file: &mut BufReader<File>) -> std::io::Result<Png> {
     chunks.insert(ty_str, chunk);
   }
 
-  return Ok(Png { chunks });
+  Ok(Png { chunks })
 }
 
 pub fn read_chunk(file: &mut BufReader<File>) -> std::io::Result<ChunkRaw> {
@@ -63,16 +63,16 @@ pub fn read_chunk(file: &mut BufReader<File>) -> std::io::Result<ChunkRaw> {
 
   if !is_crc_valid {
     // TODO is this idiomatic?
-    return Err(Error::new(ErrorKind::Other, "Chunk CRC validation failed"));
+    Err(Error::new(ErrorKind::Other, "Chunk CRC validation failed"))
+  } else {
+    Ok(ChunkRaw { ty, len, crc, data })
   }
-
-  return Ok(ChunkRaw { ty, len, crc, data });
 }
 
 pub fn bytes_to_u32(v: &[u8]) -> u32 {
   let mut bytes = [0u8; 4];
   bytes.copy_from_slice(v);
-  return u32::from_be_bytes(bytes);
+  u32::from_be_bytes(bytes)
 }
 
 #[derive(Debug)]
@@ -88,20 +88,21 @@ pub struct ChunkIHDR {
 
 pub fn parse_ihdr_chunk(bytes: &[u8]) -> Result<ChunkIHDR, String> {
   if bytes.len() != 13 {
-    return Err(format!(
+    Err(format!(
       "IHDR header expects 13 bytes, found {}",
       bytes.len()
-    ));
+    ))
+  } else {
+    Ok(ChunkIHDR {
+      width: bytes_to_u32(&bytes[0..4]),
+      height: bytes_to_u32(&bytes[4..8]),
+      depth: bytes[8],
+      color: bytes[9],
+      compression: bytes[10],
+      filter: bytes[11],
+      interlace: bytes[12],
+    })
   }
-  return Ok(ChunkIHDR {
-    width: bytes_to_u32(&bytes[0..4]),
-    height: bytes_to_u32(&bytes[4..8]),
-    depth: bytes[8],
-    color: bytes[9],
-    compression: bytes[10],
-    filter: bytes[11],
-    interlace: bytes[12],
-  });
 }
 
 #[derive(Debug)]
@@ -117,12 +118,13 @@ pub struct SRGB {
 #[allow(dead_code)]
 pub fn parse_srgb_chunk(bytes: &[u8]) -> Result<SRGB, String> {
   if bytes.len() != 1 {
-    return Err(format!(
+    Err(format!(
       "sRGB header expects 1 bytes, found {}",
       bytes.len()
-    ));
+    ))
+  } else {
+    Ok(SRGB {
+      rendering_intent: bytes[0],
+    })
   }
-  return Ok(SRGB {
-    rendering_intent: bytes[0],
-  });
 }

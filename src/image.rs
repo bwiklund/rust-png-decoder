@@ -43,7 +43,7 @@ pub fn png_to_raw(png: &Png) -> Vec<u8> {
     rgba = channels;
   }
 
-  return rgba;
+  rgba
 }
 
 pub fn idat_to_image(
@@ -126,15 +126,15 @@ pub fn idat_to_image(
     }
   }
 
-  return Ok(out);
+  Ok(out)
 }
 
 // pixels that would be offscreen up or left are all treated as zeros, this helps with that
 fn lookup(v: &[u8], bpp: i32, width: u32, x: i32, y: i32, component: i32) -> u8 {
   if x < 0 || y < 0 {
-    return 0;
+    0
   } else {
-    return v[((x + y * width as i32) * bpp + component) as usize];
+    v[((x + y * width as i32) * bpp + component) as usize]
   }
 }
 
@@ -146,11 +146,11 @@ fn paeth_predictor(a: i32, b: i32, c: i32) -> i32 {
   let pc = i32::abs(p - c);
 
   if pa <= pb && pa <= pc {
-    return a;
+    a
   } else if pb <= pc {
-    return b;
+    b
   } else {
-    return c;
+    c
   }
 }
 
@@ -161,16 +161,15 @@ pub fn apply_palette(indexes: &[u8], palette_bytes: &[u8]) -> Vec<u8> {
 
   let mut out = vec![];
 
-  for i in 0..indexes.len() {
-    let b = indexes[i];
+  for b in indexes {
     let palette_index = (b * 3) as usize;
     // TODO bounds check indices
     // palettes are ALWAYS rgb, 1 byte each
-    out.push(palette_bytes[palette_index + 0]);
+    out.push(palette_bytes[palette_index]);
     out.push(palette_bytes[palette_index + 1]);
     out.push(palette_bytes[palette_index + 2]);
     out.push(255); // hang on... these can have alpha, no?
   }
 
-  return out;
+  out
 }
