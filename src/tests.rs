@@ -16,10 +16,9 @@ mod tests {
 
     fn test_case(case_name: &str) -> std::io::Result<()> {
         let file = File::open(format!("tests/{}.png", case_name))?;
-        let mut file = BufReader::new(file);
-        let png = read_png(&mut file)?;
-        let rgba = png_to_rgba(&png);
-        let mut expect_file = File::open(format!("tests/{}.data", case_name)).unwrap();
+        let png = read_png(&mut BufReader::new(file))?;
+        let rgba = png_to_rgba(&png).unwrap();
+        let mut expect_file = File::open(format!("tests/{}.data", case_name))?;
         let mut expect_bytes = vec![];
         expect_file.read_to_end(&mut expect_bytes)?;
         assert_eq!(rgba, expect_bytes);

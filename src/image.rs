@@ -1,11 +1,11 @@
-use crate::chunks::parse_ihdr_chunk;
 use crate::chunks::Png;
+use crate::chunks::{parse_ihdr_chunk, ChunkRaw};
 
 // TODO only store the last line for filters
 // TODO take a buffer writer instead, or something
-pub fn png_to_rgba(png: &Png) -> Vec<u8> {
-  let ihdr = png.chunks.get(&String::from("IHDR")).unwrap();
-  let ihdr = parse_ihdr_chunk(&ihdr.data).unwrap();
+pub fn png_to_rgba(png: &Png) -> Result<Vec<u8>, String> {
+  let ihdr = chunk_or_err(png, b"IHDR")?;
+  let ihdr = parse_ihdr_chunk(&ihdr.data)?;
 
   let has_alpha = (1 << 2) & ihdr.color > 0;
   let has_color = (1 << 1) & ihdr.color > 0;
@@ -29,21 +29,30 @@ pub fn png_to_rgba(png: &Png) -> Vec<u8> {
     }
   }
 
-  let idat = png.chunks.get(&String::from("IDAT")).unwrap();
+  let idat = chunk_or_err(png, b"IDAT")?;
 
   // regardless of grayscale / truecolor / indexed, the channels are all encoded the same way
-  let channels = idat_to_channels(&idat.data, raw_channels, ihdr.width, ihdr.height).unwrap();
+  let channels = idat_to_channels(&idat.data, raw_channels, ihdr.width, ihdr.height)?;
 
   // now apply the palette if we're in indexed mode
   let rgba;
   if has_palette {
-    let plte = png.chunks.get(&String::from("PLTE")).unwrap();
+    let plte = chunk_or_err(png, b"PLTE")?;
     rgba = apply_palette(&channels, &plte.data);
   } else {
     rgba = channels;
   }
 
-  rgba
+  Ok(rgba)
+}
+
+fn chunk_or_err<'a>(png: &'a Png, name: &[u8; 4]) -> Result<&'a ChunkRaw, String> {
+  Ok(
+    png
+      .chunks
+      .get(name)
+      .ok_or_else(|| format!("{} chunk missing", std::str::from_utf8(name).unwrap()))?,
+  )
 }
 
 fn idat_to_channels(

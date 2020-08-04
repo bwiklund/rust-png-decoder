@@ -6,7 +6,7 @@ use std::io::BufReader;
 use std::io::{Error, ErrorKind};
 
 pub struct Png {
-  pub chunks: HashMap<String, ChunkRaw>,
+  pub chunks: HashMap<[u8; 4], ChunkRaw>,
 }
 
 pub struct ChunkRaw {
@@ -27,13 +27,12 @@ pub fn read_png(file: &mut BufReader<File>) -> std::io::Result<Png> {
     }
   }
 
-  let mut chunks: HashMap<String, ChunkRaw> = HashMap::new();
+  let mut chunks: HashMap<[u8; 4], ChunkRaw> = HashMap::new();
 
   while !file.buffer().is_empty() {
     let chunk = read_chunk(file)?;
-    let ty_str = String::from(std::str::from_utf8(&chunk.ty).unwrap()); // TODO
 
-    chunks.insert(ty_str, chunk);
+    chunks.insert(chunk.ty, chunk);
   }
 
   Ok(Png { chunks })

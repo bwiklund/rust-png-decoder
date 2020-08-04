@@ -12,11 +12,10 @@ fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
     let file = File::open(args[1].clone())?;
-    let mut file = BufReader::new(file);
-    let png = read_png(&mut file)?;
-    let rgba = png_to_rgba(&png);
+    let png = read_png(&mut BufReader::new(file))?;
+    let rgba = png_to_rgba(&png).unwrap();
 
-    let mut out_file = File::create(args[2].clone()).unwrap();
+    let mut out_file = File::create(args[2].clone())?;
     out_file.write_all(&rgba)?;
 
     Ok(())
