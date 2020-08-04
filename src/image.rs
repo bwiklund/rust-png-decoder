@@ -1,4 +1,16 @@
 // TODO only store the last line in ram, stream the rest of the image out immediately
+
+use crate::chunks::Png;
+use std::fs::File;
+use std::io::prelude::*;
+
+// TODO take a buffer writer instead, or something
+pub fn png_to_raw(png: &Png, out_file: &mut File) {
+  let idata = png.chunks.get(&String::from("IDAT")).unwrap();
+  let rgba = decompress_png_to_raw(&idata.data, 4, 52, 52).unwrap(); // FIXME actually use width from IHDR chunk
+  out_file.write(&rgba).unwrap();
+}
+
 pub fn decompress_png_to_raw(
   compressed: &[u8],
   bpp: i32,

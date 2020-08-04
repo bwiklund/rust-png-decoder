@@ -1,12 +1,10 @@
 mod chunks;
 mod image;
 
+use crate::chunks::read_png;
+use crate::image::png_to_raw;
 use std::fs::File;
-use std::io::prelude::*;
 use std::io::BufReader;
-
-use crate::chunks::{parse_ihdr_chunk, parse_srgb_chunk, read_chunk};
-use crate::image::decompress_png_to_raw;
 
 /*
 
@@ -14,57 +12,15 @@ Questions:
 - is `copy_from_slice` the best way to convince rust that i have an array of fixed size for `from_be_bytes`
 - read_chunk should probably return a Result instead of panicking, yeah?
 - is it idiomatic to end with a return or an implicit return expression
+- TODO fix all the unwraps
 */
 
 // https://en.wikipedia.org/wiki/Portable_Network_Graphics
 fn main() -> std::io::Result<()> {
-    let file = File::open("selene_truecolor_alpha.png")?;
+    let file = File::open("tests/truecolor_rgba.png")?;
     let mut file = BufReader::new(file);
-
-    // HEADER
-    let expect_header: Vec<u8> = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-    let mut header = vec![0; expect_header.len()];
-    file.read_exact(&mut header)?;
-
-    for b in 0..header.len() {
-        if header[b] != expect_header[b] {
-            panic!("Invalid PNG header");
-        }
-    }
-
-    while !file.buffer().is_empty() {
-        let chunk = read_chunk(&mut file)?;
-        println!(
-            "{}, {} bytes, crc {}",
-            std::str::from_utf8(&chunk.ty).unwrap(),
-            chunk.len,
-            chunk.crc
-        );
-
-        let ty_str = std::str::from_utf8(&chunk.ty).unwrap();
-
-        // TODO are these case sensitive in the spec?
-        match ty_str {
-            "IHDR" => {
-                println!("{:#?}", parse_ihdr_chunk(&chunk.data));
-            }
-            "sRGB" => {
-                println!("{:#?}", parse_srgb_chunk(&chunk.data));
-            }
-            "IDAT" => {
-                println!("IDAT chunk (bytes omitted)");
-                let rgba = decompress_png_to_raw(&chunk.data, 4, 52, 52).unwrap(); // FIXME actually use width from IHDR chunk
-                let mut out_file = File::create("./out.data").unwrap();
-                out_file.write(&rgba).unwrap();
-            }
-            "IEND" => {
-                println!("IEND chunk");
-            }
-            _ => println!("unknown chunk type: {}", ty_str),
-        }
-
-        println!();
-    }
-
+    let png = read_png(&mut file)?;
+    let mut out_file = File::create("./out.data").unwrap();
+    png_to_raw(&png, &mut out_file);
     return Ok(());
 }
