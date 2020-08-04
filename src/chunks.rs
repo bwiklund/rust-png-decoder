@@ -23,7 +23,7 @@ pub fn read_png(file: &mut BufReader<File>) -> std::io::Result<Png> {
 
   for b in 0..header.len() {
     if header[b] != expect_header[b] {
-      panic!("Invalid PNG header");
+      return Err(Error::new(ErrorKind::Other, "PNG header invalid"));
     }
   }
 

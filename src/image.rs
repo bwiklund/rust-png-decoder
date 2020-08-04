@@ -18,7 +18,7 @@ pub fn png_to_rgba(png: &Png) -> Result<Vec<u8>, String> {
     if has_color {
       raw_channels += 1;
     } else {
-      panic!(); // png spec says palette flag can only exist with color
+      return Err("Cannot set palette flag without color flag".to_string());
     }
   } else {
     if has_color {
@@ -38,7 +38,7 @@ pub fn png_to_rgba(png: &Png) -> Result<Vec<u8>, String> {
   let rgba;
   if has_palette {
     let plte = chunk_or_err(png, b"PLTE")?;
-    rgba = apply_palette(&channels, &plte.data);
+    rgba = apply_palette(&channels, &plte.data)?;
   } else {
     rgba = channels;
   }
@@ -130,7 +130,7 @@ fn idat_to_channels(
         }
       }
       _ => {
-        panic!(format!("Invalid line filter type: {:x}", filter));
+        return Err(format!("Invalid line filter type: {:x}", filter));
       }
     }
   }
@@ -164,16 +164,18 @@ fn paeth_predictor(a: i32, b: i32, c: i32) -> i32 {
   }
 }
 
-pub fn apply_palette(indexes: &[u8], palette_bytes: &[u8]) -> Vec<u8> {
+pub fn apply_palette(indexes: &[u8], palette_bytes: &[u8]) -> Result<Vec<u8>, String> {
   if palette_bytes.len() % 3 != 0 {
-    panic!();
+    return Err("Palette data size not multiple of three".to_string());
   }
 
   let mut out = vec![];
 
   for b in indexes {
     let palette_index = (b * 3) as usize;
-    // TODO bounds check indices
+    if palette_index + 3 > palette_bytes.len() {
+      return Err(format!("Invalid palette index: {}", b));
+    }
     // palettes are ALWAYS rgb, 1 byte each
     out.push(palette_bytes[palette_index]);
     out.push(palette_bytes[palette_index + 1]);
@@ -181,5 +183,5 @@ pub fn apply_palette(indexes: &[u8], palette_bytes: &[u8]) -> Vec<u8> {
     out.push(255); // hang on... these can have alpha, no?
   }
 
-  out
+  Ok(out)
 }
