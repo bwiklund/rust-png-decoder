@@ -17,7 +17,6 @@ pub struct ChunkRaw {
 }
 
 pub fn read_png(file: &mut BufReader<File>) -> std::io::Result<Png> {
-  // HEADER
   let expect_header: Vec<u8> = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
   let mut header = vec![0; expect_header.len()];
   file.read_exact(&mut header)?;
@@ -36,13 +35,6 @@ pub fn read_png(file: &mut BufReader<File>) -> std::io::Result<Png> {
 
     chunks.insert(ty_str, chunk);
   }
-
-  // println!(
-  //   "{}, {} bytes, crc {}",
-  //   std::str::from_utf8(&chunk.ty).unwrap(),
-  //   chunk.len,
-  //   chunk.crc
-  // );
 
   return Ok(Png { chunks });
 }

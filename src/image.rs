@@ -1,12 +1,9 @@
-// TODO only store the last line in ram, stream the rest of the image out immediately
-
 use crate::chunks::parse_ihdr_chunk;
 use crate::chunks::Png;
-use std::fs::File;
-use std::io::prelude::*;
 
+// TODO only store the last line for filters
 // TODO take a buffer writer instead, or something
-pub fn png_to_raw(png: &Png, out_file: &mut File) {
+pub fn png_to_raw(png: &Png) -> Vec<u8> {
   let ihdr = png.chunks.get(&String::from("IHDR")).unwrap();
   let ihdr = parse_ihdr_chunk(&ihdr.data).unwrap();
 
@@ -46,7 +43,7 @@ pub fn png_to_raw(png: &Png, out_file: &mut File) {
     rgba = channels;
   }
 
-  out_file.write(&rgba).unwrap();
+  return rgba;
 }
 
 pub fn idat_to_image(
