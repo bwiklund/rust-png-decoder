@@ -8,16 +8,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 
-/*
-
-Questions:
-- is `copy_from_slice` the best way to convince rust that i have an array of fixed size for `from_be_bytes`
-- read_chunk should probably return a Result instead of panicking, yeah?
-- is it idiomatic to end with a return or an implicit return expression
-- TODO fix all the unwraps
-*/
-
-// https://en.wikipedia.org/wiki/Portable_Network_Graphics
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
 

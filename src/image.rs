@@ -130,6 +130,7 @@ fn idat_to_channels(
 }
 
 // pixels that would be offscreen up or left are all treated as zeros, this helps with that
+#[inline]
 fn lookup(v: &[u8], bpp: i32, width: u32, x: i32, y: i32, component: i32) -> u8 {
   if x < 0 || y < 0 {
     0

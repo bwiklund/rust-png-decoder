@@ -11,7 +11,7 @@ mod tests {
     fn run_tests() -> std::io::Result<()> {
         test_case("indexed_opaque")?;
         test_case("truecolor_rgba")?;
-        return Ok(());
+        Ok(())
     }
 
     fn test_case(case_name: &str) -> std::io::Result<()> {
